@@ -48,11 +48,10 @@ class FbxCnx:
             response = urlopen(request, timeout=API_TMOUT,
                                context=self.secure).read()
             self.info = json.loads(response.decode())
-            Domoticz.Debug('Supported API version: ' +
-                           f"{self.info['api_version']}")
-            Domoticz.Debug('Freebox model: ' + f"{self.info['box_model']}")
+            Domoticz.Debug(f"Supported API version: {self.info['api_version']}")
+            Domoticz.Debug(f"Freebox model: {self.info['box_model']}")
         except (urllib.error.HTTPError, urllib.error.URLError) as error:
-            Domoticz.Error('Init error ("/api_version"): ' + error.msg)
+            Domoticz.Error(f"Init error ('/api_version'): {error}")
         except timeout:
             Domoticz.Error('Timeout when call ("/api_version")')
         if self.info is None:
@@ -87,7 +86,7 @@ class FbxCnx:
             request.headers.update(headers)
         api_response = urlopen(request, timeout=API_TMOUT,
                                context=self.secure).read()
-        Domoticz.Debug('<- API Response: ' + f"{api_response}")
+        Domoticz.Debug(f"<- API Response: {api_response}")
         dict_response = json.loads(api_response.decode())
         return dict_response
 
@@ -153,14 +152,14 @@ class FbxCnx:
             str: "session_token"
         """
         challenge = self._request('login/')['result']['challenge']
-        Domoticz.Debug("Challenge: " + challenge)
+        Domoticz.Debug('Challenge: ' + challenge)
         data = {
             "app_id": app_id,
             "password": hmac.new(app_token.encode(), challenge.encode(), hashlib.sha1).hexdigest()
         }
         session_token = self._request(
             'login/session/', 'POST', None, data)['result']['session_token']
-        Domoticz.Debug("Session Token: " + session_token)
+        Domoticz.Debug('Session Token: ' + session_token)
         return session_token
 
     def _disconnect(self, session_token):
@@ -174,7 +173,7 @@ class FbxCnx:
             'login/logout/',
             'POST',
             {'Content-Type': 'application/json', 'X-Fbx-App-Auth': session_token})
-        Domoticz.Debug("Disconnect" + result)
+        Domoticz.Debug('Disconnect' + result)
         return result
 
 
@@ -254,9 +253,9 @@ class FbxApp(FbxCnx):
             if api_result['success'] and 'result' in api_result:
                 result = api_result['result']
         except (urllib.error.HTTPError, urllib.error.URLError) as error:
-            Domoticz.Error('API Error ("' + path + '"): ' + error.msg)
+            Domoticz.Error(f"API Error ('{path}'): {error}")
         except timeout:
-            Domoticz.Error('Timeout when call ("' + path + '")')
+            Domoticz.Error(f"Timeout when call ('{path}')")
         return result
 
     def percent(self, value, total, around=2):
@@ -301,9 +300,8 @@ class FbxApp(FbxCnx):
                 label = partition['label']
                 used = partition['used_bytes']
                 total = partition['total_bytes']
-                Domoticz.Debug('Usage of disk "' + label + '": ' +
-                               str(used) + '/' + str(total) + ' bytes')
-
+                percent = self.percent(used, total)
+                Domoticz.Debug(f"Usage of disk '{label}': {used}/{total} bytes ({percent}%)")
                 result.update({str(label): str(self.percent(used, total))})
         return result
 
@@ -523,7 +521,7 @@ class FbxApp(FbxCnx):
                 else:
                     Domoticz.Debug('Wifi is now OFF')
         except (urllib.error.HTTPError, urllib.error.URLError) as error:
-            Domoticz.Error('API Error ("wifi/config/"): ' + error.msg)
+            Domoticz.Error(f"API Error ('wifi/config/'): {error}")
         except timeout as exc:
             if not switch_on:
                 # If we are connected using wifi, disabling wifi will close connection
@@ -560,7 +558,7 @@ class FbxApp(FbxCnx):
         now = int(time.time())
         next_recording = now -1 # -1 if none programmed PVR record
         result = self.call('/pvr/programmed')
-        Domoticz.Debug('PVR Programmed List: ' + f"{result}")
+        Domoticz.Debug(f"PVR Programmed List: {result}")
         for pvr in result:
             if pvr['state'] == 'waiting_start_time':
                 recording_start = int(float(pvr['start']))
@@ -603,12 +601,12 @@ class FbxApp(FbxCnx):
 
         def getinfo(self):
             result = self.server.call('/system')
-            Domoticz.Debug('Freebox Server Infos: ' + f"{result}")
+            Domoticz.Debug(f"Freebox Server Infos: {result}")
             return result
 
         def sensors(self):
             result = {}
-            if self.info["sensors"]:
+            if self.info and self.info["sensors"]:
                 result = self.info["sensors"]
             return result
 
@@ -627,7 +625,7 @@ class FbxApp(FbxCnx):
             if result:
                 self.server.tv_player = True
                 Domoticz.Debug('Player(s) are registered on the local network')
-                Domoticz.Debug('Player(s) Infos: ' + f"{result}")
+                Domoticz.Debug(f"Player(s) Infos: {result}")
             else:
                 self.server.tv_player = False
                 Domoticz.Error('Error: You must grant Player Control permission')
@@ -638,7 +636,7 @@ class FbxApp(FbxCnx):
             players = self.info
             for player in players:
                 result.append(player['id'])
-                Domoticz.Debug('Player(s) Id: ' + f"{result}")
+                Domoticz.Debug(f"Player(s) Id: {result}")
             return result
 
         def state(self, uid):
@@ -648,11 +646,11 @@ class FbxApp(FbxCnx):
                     f"/player/{uid}/api/v{TV_API_VER}/status")
             except (urllib.error.HTTPError, urllib.error.URLError) as error:
                 # If player is shutdown : Error="Gateway Time-out"
-                if error.code == 504:  # error.msg != 'Gateway Time-out'
+                if error.code == 504:  # error != 'Gateway Time-out'
                     status = False
                 else:
                     Domoticz.Error(
-                        'API Error ("/player/' + uid + '/api/v' + TV_API_VER + '/status"): ' + error.msg)
+                        f"API Error ('/player/{uid}/api/v{TV_API_VER}/status'):  {error}")
             except timeout:
                 Domoticz.Error('Timeout')
             else:
@@ -668,7 +666,7 @@ class FbxApp(FbxCnx):
                 request = Request(url)
                 response = urlopen(request, timeout=API_TMOUT).read()
             except (urllib.error.HTTPError, urllib.error.URLError) as error:
-                Domoticz.Error('TV Remote error ("' + url + '"): ' + error.msg)
+                Domoticz.Error(f"TV Remote error ('{url}'): {error}")
             except timeout:
                 Domoticz.Error('Timeout')  # None if Error occurred
             return response
