@@ -370,7 +370,7 @@ class FbxApp(FbxCnx):
         """
         result = {}
         prerequisite_pattern = '^fbxgw7-r[0-9]+/full$'
-        if re.match(prerequisite_pattern, self.info['box_model']) is None:
+        if self.info is None or re.match(prerequisite_pattern, self.info['box_model']) is None:
             return result  # Return an empty list if model of Freebox isn't compatible with alarm
         nodes = self.call('home/tileset/all')
         for node in nodes:
